@@ -1,0 +1,117 @@
+(() => {
+  const KEY = "jarvis-life-os-public-v3";
+  const OLD_KEYS = ["jarvis-life-os-public-v2","jarvis-life-os-public-v1"];
+  const WINS = ["Fitness","Family","Career / Business","Faith","Personal Time"];
+  const DEFAULT_CATEGORIES = [
+    ["Sleep",420],["Wake-Up Transition",15],["Fitness",60],["Faith",45],["Morning Routine",30],
+    ["Job Search",195],["Break",15],["Business Building",195],["Planning",45],["Lunch",60],
+    ["Admin / Errands",60],["Learning / Planning / Flex",60],["Family",180],["Hygiene",30],["Personal Wind-Down",30]
+  ];
+  const DEFAULT_HABITS = [
+    {name:"Workout or active recovery",frequency:"Daily",category:"Health"},
+    {name:"Prayer / faith time",frequency:"Daily",category:"Faith"},
+    {name:"120+ minutes of family time",frequency:"Daily",category:"Family"},
+    {name:"Plan tomorrow",frequency:"Daily",category:"Personal"}
+  ];
+  const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
+  const id = () => Math.random().toString(36).slice(2,10);
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  const parseDate = s => { const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); };
+  const addDays = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n); return x; };
+  const mondayOf = d => { const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); x.setDate(x.getDate()-((x.getDay()+6)%7)); return x; };
+  const formatDate = d => new Intl.DateTimeFormat("en-US",{weekday:"long",month:"numeric",day:"numeric",year:"2-digit"}).format(d);
+  const shortDate = d => new Intl.DateTimeFormat("en-US",{month:"numeric",day:"numeric",year:"2-digit"}).format(d);
+  const minutesText = n => { n=Math.round(Number(n)||0); const h=Math.floor(n/60),m=n%60; return h?`${h}h${m?` ${m}m`:""}`:`${m}m`; };
+  const clamp = n => Math.max(0,Math.min(1440,Math.round(Number(n)||0)));
+  const sum = (arr,fn=x=>x) => arr.reduce((a,x)=>a+fn(x),0);
+  const escapeHtml = s => String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+  const minutesBetween = (start,end) => {
+    if(!start||!end) return 0;
+    const [sh,sm]=start.split(":").map(Number), [eh,em]=end.split(":").map(Number);
+    let v=(eh*60+em)-(sh*60+sm); if(v<0)v+=1440; return v;
+  };
+  const timeLabel = t => {
+    if(!t)return "";
+    const [h,m]=t.split(":").map(Number), ap=h>=12?"PM":"AM", hh=h%12||12;
+    return `${hh}:${String(m).padStart(2,"0")} ${ap}`;
+  };
+  function fresh(){
+    const week=iso(mondayOf(new Date()));
+    return {
+      currentWeek:week,selectedDay:iso(new Date()),selectedView:"today",
+      categories:DEFAULT_CATEGORIES.map(([name,planned])=>({name,planned})),
+      habits:DEFAULT_HABITS.map(h=>({id:id(),...h,active:true})),weeks:{}
+    };
+  }
+  function migrate(raw){
+    if(!raw)return fresh();
+    const s=raw;
+    if(s.week&&!s.currentWeek){s.currentWeek=s.week;s.selectedDay=s.day||s.week;}
+    s.categories=s.categories||DEFAULT_CATEGORIES.map(([name,planned])=>({name,planned}));
+    s.habits=s.habits||DEFAULT_HABITS.map(h=>({id:id(),...h,active:true}));
+    s.currentWeek=s.currentWeek||iso(mondayOf(new Date()));
+    s.selectedDay=s.selectedDay||s.currentWeek;
+    s.selectedView=s.selectedView||"today";
+    s.weeks=s.weeks||{};
+    Object.values(s.weeks).forEach(w=>{
+      w.reflections=w.reflections||w.r||{well:"",drift:"",adjust:"",grateful:""};
+      w.days=w.days||{};
+    });
+    return s;
+  }
+  let state;
+  try{
+    const current=localStorage.getItem(KEY);
+    if(current) state=migrate(JSON.parse(current));
+    else{
+      let old=null;
+      for(const k of OLD_KEYS){ if(localStorage.getItem(k)){old=JSON.parse(localStorage.getItem(k));break;} }
+      state=migrate(old);
+    }
+  }catch{state=fresh();}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch{}}
+  function blankDay(date){
+    return {
+      date,entries:[],tasks:[],events:[],habitStatus:{},
+      wins:Object.fromEntries(WINS.map(w=>[w,null])),
+      workout:{name:"",type:"Strength",notes:"",duration:"",effort:"",completed:false,exercises:[]}
+    };
+  }
+  function normalizeDay(date,d){
+    d=d||blankDay(date); d.date=d.date||date;
+    d.entries=Array.isArray(d.entries)?d.entries:[];
+    d.tasks=Array.isArray(d.tasks)?d.tasks:[];
+    d.events=Array.isArray(d.events)?d.events:[];
+    d.habitStatus=d.habitStatus||{};
+    d.wins=d.wins||Object.fromEntries(WINS.map(w=>[w,null]));
+    d.workout=d.workout||{};
+    d.workout.name=d.workout.name||d.workout.routineName||"";
+    d.workout.type=d.workout.type||d.workout.workoutType||"Strength";
+    d.workout.notes=d.workout.notes||"";
+    d.workout.duration=d.workout.duration??"";
+    d.workout.effort=d.workout.effort??"";
+    d.workout.completed=Boolean(d.workout.completed);
+    d.workout.exercises=Array.isArray(d.workout.exercises)?d.workout.exercises:[];
+    d.tasks.forEach(t=>{t.category=t.category||"Personal";t.dueTime=t.dueTime||"";});
+    return d;
+  }
+  const weekDates = () => Array.from({length:7},(_,i)=>iso(addDays(parseDate(state.currentWeek),i)));
+  function seedWeek(){
+    if(!state.weeks[state.currentWeek]){
+      const days={};
+      weekDates().forEach((date,i)=>{
+        const d=blankDay(date);
+        if(i<5)d.entries=state.categories.map(c=>({id:id(),category:c.name,activity:c.name,planned:Number(c.planned)||0,actual:"",note:""}));
+        days[date]=d;
+      });
+      state.weeks[state.currentWeek]={days,reflections:{well:"",drift:"",adjust:"",grateful:""}};
+    }
+    const w=state.weeks[state.currentWeek];
+    w.days=w.days||{};w.reflections=w.reflections||{well:"",drift:"",adjust:"",grateful:""};
+    weekDates().forEach(date=>w.days[date]=normalizeDay(date,w.days[date]));
+    if(!weekDates().includes(state.selectedDay)) state.selectedDay=state.currentWeek;
+    save();
+  }
+  const week = () => {seedWeek();return state.weeks[state.currentWeek];};
+  const day = (date=state.selectedDay) => week().day
