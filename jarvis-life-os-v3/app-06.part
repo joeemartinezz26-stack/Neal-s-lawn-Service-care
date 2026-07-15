@@ -1,0 +1,48 @@
+enderTasks();renderCalendar();renderWorkout();renderHabits();renderCoach();renderReview();
+  }
+  function exportCsv(){
+    const rows=[["JARVIS LIFE OS WEEKLY EXPORT"],["Week",state.currentWeek],[],
+      ["TIME"],["Date","Category","Activity","Planned","Actual","Notes"]];
+    weekDates().forEach(date=>day(date).entries.forEach(e=>rows.push([date,e.category,e.activity,e.planned||0,actual(e),e.note||""])));
+    rows.push([],["TASKS"],["Date","Task","Priority","Category","Due Time","Estimated","Completed"]);
+    weekDates().forEach(date=>day(date).tasks.forEach(t=>rows.push([date,t.title,t.priority,t.category,t.dueTime,t.estimated||0,t.done?"Yes":"No"])));
+    rows.push([],["CALENDAR"],["Date","Event","Start","End","Category","Notes"]);
+    weekDates().forEach(date=>day(date).events.forEach(e=>rows.push([date,e.title,e.start,e.end,e.category,e.notes||""])));
+    rows.push([],["WORKOUTS"],["Date","Routine","Type","Duration","Effort","Completed","Exercise","Sets","Reps","Weight","Unit","Notes"]);
+    weekDates().forEach(date=>{const w=day(date).workout;(w.exercises.length?w.exercises:[{}]).forEach(e=>rows.push([date,w.name,w.type,w.duration,w.effort,w.completed?"Yes":"No",e.name||"",e.sets||"",e.reps||"",e.weight||"",e.unit||"",e.notes||""]));});
+    rows.push([],["HABITS"],["Date","Habit","Completed"]);
+    weekDates().forEach(date=>state.habits.filter(h=>h.active&&habitApplies(h,date)).forEach(h=>rows.push([date,h.name,day(date).habitStatus[h.id]?"Yes":"No"])));
+    const csv=rows.map(r=>r.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",")).join("\n");
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`Jarvis-Life-OS-${state.currentWeek}.csv`;a.click();URL.revokeObjectURL(a.href);
+  }
+
+  // Global navigation and week controls
+  $$("nav button").forEach(b=>b.onclick=()=>navigate(b.dataset.view));
+  $$("[data-go]").forEach(b=>b.onclick=()=>navigate(b.dataset.go));
+  $("#prevWeek").onclick=()=>setWeek(addDays(parseDate(state.currentWeek),-7));
+  $("#nextWeek").onclick=()=>setWeek(addDays(parseDate(state.currentWeek),7));
+  $("#currentWeek").onclick=()=>setWeek(new Date());
+  $("#picker").onchange=e=>{if(e.target.value)setWeek(parseDate(e.target.value));};
+
+  // Forms
+  $("#addTime").onsubmit=e=>{e.preventDefault();const title=$("#timeActivity").value.trim();if(!title)return;day().entries.push({id:id(),category:$("#timeCategory").value,activity:title,planned:0,actual:clamp($("#timeMinutes").value),note:""});$("#timeActivity").value="";$("#timeMinutes").value="";save();renderAll();};
+  $("#addTask").onsubmit=e=>{e.preventDefault();const title=$("#taskName").value.trim();if(!title)return;day().tasks.push({id:id(),title,priority:$("#taskPriority").value,estimated:clamp($("#taskEstimate").value),dueTime:$("#taskTime").value,category:$("#taskCategory").value,done:false});$("#taskName").value="";$("#taskEstimate").value="";$("#taskTime").value="";save();renderAll();};
+  $("#addEvent").onsubmit=e=>{e.preventDefault();const title=$("#eventTitle").value.trim();if(!title)return;day().events.push({id:id(),title,start:$("#eventStart").value,end:$("#eventEnd").value,category:$("#eventCategory").value,notes:$("#eventNotes").value.trim()});$("#eventTitle").value="";$("#eventStart").value="";$("#eventEnd").value="";$("#eventNotes").value="";save();renderAll();};
+  $("#routineName").oninput=e=>{day().workout.name=e.target.value;save();renderToday();};
+  $("#workoutType").onchange=e=>{day().workout.type=e.target.value;save();renderToday();};
+  $("#workoutDuration").oninput=e=>{day().workout.duration=e.target.value===""?"":clamp(e.target.value);save();};
+  $("#workoutEffort").oninput=e=>{day().workout.effort=e.target.value===""?"":Math.max(1,Math.min(10,Math.round(Number(e.target.value)||1)));save();};
+  $("#routineNotes").oninput=e=>{day().workout.notes=e.target.value;save();};
+  $("#addExercise").onsubmit=e=>{e.preventDefault();const name=$("#exerciseName").value.trim();if(!name)return;day().workout.exercises.push({id:id(),name,sets:Math.max(1,Math.round(Number($("#exerciseSets").value)||1)),reps:Math.max(1,Math.round(Number($("#exerciseReps").value)||1)),weight:$("#exerciseWeight").value===""?"":Math.max(0,Number($("#exerciseWeight").value)||0),unit:$("#exerciseUnit").value,notes:$("#exerciseNotes").value.trim(),done:false});["exerciseName","exerciseSets","exerciseReps","exerciseWeight","exerciseNotes"].forEach(x=>$("#"+x).value="");save();renderAll();};
+  $("#addCurls").onclick=()=>{day().workout.exercises.push({id:id(),name:"Dumbbell Curls",sets:3,reps:20,weight:"",unit:"lb",notes:"Controlled reps; record weight used.",done:false});save();renderAll();};
+  $("#completeWorkout").onclick=()=>{const w=day().workout;w.completed=!w.completed;if(w.completed)w.exercises.forEach(e=>e.done=true);save();renderAll();};
+  $("#addHabit").onsubmit=e=>{e.preventDefault();const name=$("#habitName").value.trim();if(!name)return;state.habits.push({id:id(),name,frequency:$("#habitFrequency").value,category:$("#habitCategory").value,active:true});$("#habitName").value="";save();renderAll();};
+  $("#askCoach").onclick=()=>{const q=$("#coachQuestion").value.trim();if(!q)return;$("#coachAnswer").textContent=answerCoach(q);$("#coachAnswer").style.display="block";};
+  $("#coachQuestion").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("#askCoach").click();}});
+  $$(".coachPrompt").forEach(b=>b.onclick=()=>{$("#coachQuestion").value=b.textContent;$("#askCoach").click();});
+  $("#exportCsv").onclick=exportCsv;
+
+  seedWeek();
+  navigate(state.selectedView||"today");
+  renderAll();
+})();
