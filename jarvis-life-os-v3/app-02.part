@@ -1,0 +1,82 @@
+s[date];
+  const allEntries = () => weekDates().flatMap(d=>day(d).entries);
+  const actual = e => clamp(e.actual);
+  const dayStats = date => {
+    const d=day(date), planned=sum(d.entries,e=>Number(e.planned)||0), logged=sum(d.entries,actual);
+    const family=sum(d.entries.filter(e=>e.category==="Family"),actual);
+    return {planned,logged,family,remaining:1440-logged};
+  };
+  const categoryNames = () => [...new Set([...state.categories.map(c=>c.name),...allEntries().map(e=>e.category)])];
+  const categoryStats = name => {
+    const a=allEntries().filter(e=>e.category===name),planned=sum(a,e=>Number(e.planned)||0),logged=sum(a,actual);
+    return {name,planned,logged,variance:logged-planned,avg:logged/7,pct:(logged/7)/1440};
+  };
+  const habitApplies = (habit,date) => {
+    const dow=parseDate(date).getDay();
+    return habit.frequency==="Daily" || (habit.frequency==="Weekdays"&&dow>=1&&dow<=5) || (habit.frequency==="Weekends"&&(dow===0||dow===6));
+  };
+  function habitStreak(habitId,date){
+    let streak=0,cur=parseDate(date);
+    for(let i=0;i<365;i++){
+      const key=iso(cur),wk=iso(mondayOf(cur)),w=state.weeks[wk],d=w?.days?.[key];
+      const habit=state.habits.find(h=>h.id===habitId);
+      if(habit&&!habitApplies(habit,key)){cur=addDays(cur,-1);continue;}
+      if(d?.habitStatus?.[habitId]){streak++;cur=addDays(cur,-1);}else break;
+    }
+    return streak;
+  }
+  function navigate(view){
+    state.selectedView=view;save();
+    $$("nav button").forEach(b=>b.classList.toggle("on",b.dataset.view===view));
+    $$(".view").forEach(v=>v.classList.toggle("on",v.id===view));
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+  function dayTabs(selector){
+    $(selector).innerHTML=weekDates().map(date=>`<button class="day ${date===state.selectedDay?"on":""}" data-date="${date}"><b>${parseDate(date).toLocaleDateString("en-US",{weekday:"long"})}</b><span>${shortDate(parseDate(date))}</span></button>`).join("");
+    $$(`${selector} [data-date]`).forEach(b=>b.onclick=()=>{state.selectedDay=b.dataset.date;save();renderAll();});
+  }
+  function setWeek(date){
+    state.currentWeek=iso(mondayOf(date));
+    state.selectedDay=weekDates().includes(iso(date))?iso(date):state.currentWeek;
+    seedWeek();renderAll();
+  }
+  function renderTop(){
+    const m=parseDate(state.currentWeek),s=addDays(m,6);
+    $("#headerDate").textContent=shortDate(new Date());
+    $("#weekTitle").textContent=`Week of ${shortDate(m)}`;
+    $("#weekRange").textContent=`${formatDate(m)} – ${formatDate(s)}`;
+    $("#picker").value=state.selectedDay;
+  }
+  function coachInsights(date=state.selectedDay){
+    const d=day(date),ds=dayStats(date),tasks=d.tasks,doneTasks=tasks.filter(t=>t.done).length;
+    const activeHabits=state.habits.filter(h=>h.active&&habitApplies(h,date));
+    const habitDone=activeHabits.filter(h=>d.habitStatus[h.id]).length;
+    const insights=[];
+    if(ds.family<120)insights.push({tone:"warnc",title:"Protect family time",text:`You have logged ${ds.family} of your 120-minute family minimum. Protect ${120-ds.family} more minutes.`});
+    else insights.push({tone:"goodc",title:"Family minimum secured",text:`You have logged ${ds.family} family minutes today.`});
+    const highLeft=tasks.filter(t=>!t.done&&t.priority==="High");
+    if(highLeft.length)insights.push({tone:"badc",title:"Top priority",text:`Finish “${highLeft[0].title}” before lower-priority work.`});
+    else if(tasks.length)insights.push({tone:"goodc",title:"Tasks on track",text:`${doneTasks} of ${tasks.length} tasks are complete.`});
+    else insights.push({tone:"warnc",title:"Define the day",text:"You have no tasks listed. Add one clear priority so the day has a target."});
+    if(d.workout.exercises.length&&!d.workout.completed)insights.push({tone:"warnc",title:"Workout waiting",text:`Your ${d.workout.name||d.workout.type} routine has ${d.workout.exercises.length} exercises ready.`});
+    if(d.workout.completed)insights.push({tone:"goodc",title:"Workout complete",text:`Workout logged${d.workout.duration?` for ${d.workout.duration} minutes`:""}.`});
+    if(activeHabits.length)insights.push({tone:habitDone===activeHabits.length?"goodc":"",title:"Habit consistency",text:`${habitDone} of ${activeHabits.length} habits are complete today.`});
+    if(ds.logged<300)insights.push({tone:"",title:"Time tracking",text:`Only ${minutesText(ds.logged)} is logged today. Add actual minutes as the day progresses.`});
+    return insights.slice(0,5);
+  }
+  function renderToday(){
+    const date=state.selectedDay,d=day(date),ds=dayStats(date);
+    const priorityRank={High:0,Medium:1,Low:2};
+    const tasks=[...d.tasks].sort((a,b)=>(priorityRank[a.priority]-priorityRank[b.priority])||(Number(a.done)-Number(b.done)));
+    const events=[...d.events].sort((a,b)=>(a.start||"").localeCompare(b.start||""));
+    const activeHabits=state.habits.filter(h=>h.active&&habitApplies(h,date));
+    const habitsDone=activeHabits.filter(h=>d.habitStatus[h.id]).length;
+    const tasksDone=d.tasks.filter(t=>t.done).length;
+    $("#todayHeading").textContent=formatDate(parseDate(date));
+    const first=coachInsights(date)[0];
+    $("#todayBrief").textContent=first?first.text:"Your Life OS is ready. Add tasks, events, habits, and time entries for today.";
+    $("#todayKpis").innerHTML=[
+      ["Time logged",minutesText(ds.logged)],["Tasks",`${tasksDone}/${d.tasks.length}`],["Habits",`${habitsDone}/${activeHabits.length}`],["Family",`${ds.family}/120 min`]
+    ].map(([l,v])=>`<div class="kpi"><small>${l}</small><strong>${v}</strong></div>`).join("");
+    $("#todayEvents").innerHTML=events.length?events.slice(0,5).map(e=>`<div class="statline"><div><strong>${escapeHtml(e.title)}</strong><div class="tiny muted">${escapeHtml(e.category||"Calendar")}</div></div><div class="event-time">${timeLabel(e.start)}</div></div>`).join(""):`<div class="empty">No calendar events today.</div>`;
+    $("#todayTasks").innerHTML=tasks.length?tasks.slice(0,5).map(t=>`<div class="statline"><div><stron
