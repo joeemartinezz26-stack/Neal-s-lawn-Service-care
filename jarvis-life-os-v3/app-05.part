@@ -1,0 +1,47 @@
+bits.filter(h=>h.active).length?state.habits.filter(h=>h.active).map(h=>{const applies=habitApplies(h,state.selectedDay),checked=Boolean(d.habitStatus[h.id]);return `<div class="item ${checked?"done":""}" data-habit-row="${h.id}" style="${applies?"":"opacity:.55"}"><div class="habit-row"><input class="check habitCheck" type="checkbox" ${checked?"checked":""} ${applies?"":"disabled"}><div><div class="item-title strike">${escapeHtml(h.name)}</div><div class="meta">${escapeHtml(h.frequency)} · ${escapeHtml(h.category)}</div></div><div><div class="habit-streak">${habitStreak(h.id,state.selectedDay)} day streak</div><button class="btn danger small deleteHabit" style="margin-top:5px">Delete</button></div></div></div>`}).join(""):`<div class="card empty">No habits created.</div>`;
+    $$("[data-habit-row]").forEach(r=>{const h=state.habits.find(x=>x.id===r.dataset.habitRow);const c=r.querySelector(".habitCheck");if(c)c.onchange=()=>{d.habitStatus[h.id]=c.checked;save();renderAll();};r.querySelector(".deleteHabit").onclick=()=>{h.active=false;save();renderAll();};});
+  }
+  function renderCoach(){
+    const insights=coachInsights();
+    $("#coachHeading").textContent=`Brief for ${formatDate(parseDate(state.selectedDay))}`;
+    $("#coachCards").innerHTML=insights.map(i=>`<div class="card coach-card ${i.tone}"><h3>${escapeHtml(i.title)}</h3><p class="small" style="margin-bottom:0;line-height:1.45">${escapeHtml(i.text)}</p></div>`).join("");
+  }
+  function answerCoach(q){
+    const text=q.toLowerCase(),d=day(),ds=dayStats(state.selectedDay),left=d.tasks.filter(t=>!t.done),high=left.filter(t=>t.priority==="High"),active=state.habits.filter(h=>h.active&&habitApplies(h,state.selectedDay)),habitDone=active.filter(h=>d.habitStatus[h.id]).length;
+    const weekTask=weekDates().flatMap(x=>day(x).tasks),weekDone=weekTask.filter(t=>t.done).length,totalLogged=sum(allEntries(),actual);
+    if(text.includes("focus")||text.includes("priority")){
+      if(high.length)return `Focus first on “${high[0].title}.” It is your highest-priority unfinished task.${ds.family<120?` Also protect ${120-ds.family} more family minutes today.`:""}`;
+      if(left.length)return `Your next task is “${left[0].title}.” After that, complete one habit and update your time log.`;
+      return `Your task list is clear. Use the open time for business building, family, or recovery—whichever is most behind plan.`;
+    }
+    if(text.includes("week")||text.includes("how did")){
+      return `This week you logged ${minutesText(totalLogged)}. You completed ${weekDone} of ${weekTask.length} tasks. Average family time is ${Math.round(categoryStats("Family").avg)} minutes per day, and average fitness time is ${Math.round(categoryStats("Fitness").avg)} minutes per day.`;
+    }
+    if(text.includes("task")||text.includes("left")){
+      return left.length?`You have ${left.length} tasks left today:\n${left.slice(0,5).map(t=>`• ${t.title} (${t.priority})`).join("\n")}`:"You have no unfinished tasks today.";
+    }
+    if(text.includes("family")){
+      return ds.family>=120?`Family minimum met at ${ds.family} minutes.`:`You need ${120-ds.family} more family minutes to reach your daily minimum.`;
+    }
+    if(text.includes("habit")){
+      return `${habitDone} of ${active.length} habits are complete today.`;
+    }
+    if(text.includes("workout")||text.includes("fitness")){
+      const w=d.workout;
+      return w.completed?`Your workout is complete${w.duration?` at ${w.duration} minutes`:""}.`:`Your workout has ${w.exercises.length} planned exercises and ${w.exercises.filter(e=>e.done).length} completed.`;
+    }
+    return coachInsights()[0]?.text || "Add more data to your Life OS and I’ll give you a clearer recommendation.";
+  }
+  function renderReview(){
+    const sun=addDays(parseDate(state.currentWeek),6),allTasks=weekDates().flatMap(d=>day(d).tasks),doneTasks=allTasks.filter(t=>t.done).length,totalLogged=sum(allEntries(),actual),workouts=weekDates().filter(d=>day(d).workout.completed).length;
+    let habitDue=0,habitDone=0;weekDates().forEach(date=>state.habits.filter(h=>h.active&&habitApplies(h,date)).forEach(h=>{habitDue++;if(day(date).habitStatus[h.id])habitDone++;}));
+    $("#reviewTitle").textContent=`Week ending ${formatDate(sun)}`;
+    $("#reviewKpis").innerHTML=[["Time logged",minutesText(totalLogged)],["Tasks",`${doneTasks}/${allTasks.length}`],["Workouts",workouts],["Habits",`${habitDone}/${habitDue}`]].map(([l,v])=>`<div class="kpi"><small>${l}</small><strong>${v}</strong></div>`).join("");
+    const fam=Math.round(categoryStats("Family").avg),fit=Math.round(categoryStats("Fitness").avg),job=Math.round(categoryStats("Job Search").avg),biz=Math.round(categoryStats("Business Building").avg);
+    $("#weeklyInsight").innerHTML=`<div class="alert ${fam>=120?"good":"warn"}">Family averaged ${fam} minutes/day. Fitness averaged ${fit} minutes/day. Job search averaged ${job} minutes/day and business building averaged ${biz} minutes/day.</div>`;
+    $("#wins").innerHTML=weekDates().map(date=>{const d=day(date),score=WINS.filter(w=>d.wins[w]==="yes").length;return `<div class="item"><div class="item-head"><strong>${formatDate(parseDate(date))}</strong><span class="pill">${score}/5</span></div>${WINS.map(w=>`<div class="statline"><span>${w}</span><span><button class="btn small winBtn ${d.wins[w]==="yes"?"primary":""}" data-win-date="${date}" data-win="${w}" data-value="yes">Yes</button> <button class="btn small winBtn ${d.wins[w]==="no"?"danger":""}" data-win-date="${date}" data-win="${w}" data-value="no">No</button></span></div>`).join("")}</div>`}).join("");
+    $$(".winBtn").forEach(b=>b.onclick=()=>{day(b.dataset.winDate).wins[b.dataset.win]=b.dataset.value;save();renderReview();});
+    $$("[data-reflection]").forEach(t=>{t.value=week().reflections[t.dataset.reflection]||"";t.oninput=()=>{week().reflections[t.dataset.reflection]=t.value;save();};});
+  }
+  function renderAll(){
+    seedWeek();renderTop();renderToday();renderTime();r
