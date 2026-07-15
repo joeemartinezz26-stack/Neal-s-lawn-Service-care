@@ -1,0 +1,35 @@
+nst start=date.replaceAll("-","")+event.start.replace(":","")+"00";
+    const end=date.replaceAll("-","")+event.end.replace(":","")+"00";
+    const text=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Jarvis Life OS//EN","BEGIN:VEVENT",`UID:${event.id}@jarvis-life-os`,`DTSTART:${start}`,`DTEND:${end}`,`SUMMARY:${event.title.replace(/\n/g," ")}`,`DESCRIPTION:${(event.notes||"").replace(/\n/g," ")}`,"END:VEVENT","END:VCALENDAR"].join("\r\n");
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"text/calendar"}));a.download=`${event.title.replace(/[^a-z0-9]/gi,"-")}.ics`;a.click();URL.revokeObjectURL(a.href);
+  }
+  function renderCalendar(){
+    dayTabs("#calendarTabs");const d=day(),events=[...d.events].sort((a,b)=>(a.start||"").localeCompare(b.start||"")),total=sum(events,e=>minutesBetween(e.start,e.end));
+    $("#calendarDate").textContent=`Calendar · ${formatDate(parseDate(state.selectedDay))}`;
+    $("#calendarKpis").innerHTML=[["Events",events.length],["Scheduled",minutesText(total)],["First event",events[0]?timeLabel(events[0].start):"—"],["Open time",minutesText(Math.max(0,1440-total))]].map(([l,v])=>`<div class="kpi"><small>${l}</small><strong>${v}</strong></div>`).join("");
+    $("#eventList").innerHTML=events.length?events.map(e=>`<div class="item event-layout" data-event="${e.id}">
+      <div><div class="event-time">${timeLabel(e.start)}</div><div class="tiny muted">${minutesText(minutesBetween(e.start,e.end))}</div></div>
+      <div><div class="item-head"><div><div class="item-title">${escapeHtml(e.title)}</div><div class="meta">${escapeHtml(e.category)}${e.notes?` · ${escapeHtml(e.notes)}`:""}</div></div></div>
+      <div class="row" style="margin-top:8px"><button class="btn small addIcs">Add to iPhone Calendar</button><button class="btn small logEvent">Log duration</button><button class="btn danger small deleteEvent">Delete</button></div></div>
+    </div>`).join(""):`<div class="card empty">No events on your Jarvis calendar.</div>`;
+    $$("[data-event]").forEach(r=>{const e=d.events.find(x=>x.id===r.dataset.event);r.querySelector(".addIcs").onclick=()=>downloadICS(e,state.selectedDay);r.querySelector(".logEvent").onclick=()=>{d.entries.push({id:id(),category:e.category,activity:e.title,planned:minutesBetween(e.start,e.end),actual:minutesBetween(e.start,e.end),note:"Logged from Jarvis Calendar"});save();renderAll();alert("Event duration added to the Time Log.");};r.querySelector(".deleteEvent").onclick=()=>{d.events=d.events.filter(x=>x.id!==e.id);save();renderAll();};});
+  }
+  function renderWorkout(){
+    dayTabs("#workoutTabs");const d=day(),w=d.workout,done=w.exercises.filter(e=>e.done).length,totalSets=sum(w.exercises,e=>Number(e.sets)||0),volume=sum(w.exercises,e=>(Number(e.sets)||0)*(Number(e.reps)||0)*(Number(e.weight)||0));
+    $("#workoutDate").textContent=`Workout · ${formatDate(parseDate(state.selectedDay))}`;
+    $("#routineName").value=w.name||"";$("#workoutType").value=w.type||"Strength";$("#workoutDuration").value=w.duration??"";$("#workoutEffort").value=w.effort??"";$("#routineNotes").value=w.notes||"";
+    $("#workoutKpis").innerHTML=[["Exercises",w.exercises.length],["Complete",`${done}/${w.exercises.length}`],["Total sets",totalSets],["Volume",volume?`${Math.round(volume).toLocaleString()} lb`:"—"]].map(([l,v])=>`<div class="kpi"><small>${l}</small><strong>${v}</strong></div>`).join("");
+    $("#completeWorkout").textContent=w.completed?"Workout complete ✓":"Mark workout complete";
+    $("#completeWorkout").classList.toggle("primary",w.completed);
+    $("#exerciseList").innerHTML=w.exercises.length?w.exercises.map(e=>`<div class="item ${e.done?"done":""}" data-exercise="${e.id}"><div class="exercise-row"><input class="check exerciseDone" type="checkbox" ${e.done?"checked":""}><div class="exercise-fields">
+      <input class="exName wide strike" value="${escapeHtml(e.name)}" style="font-weight:900"><input class="exSets" type="number" min="1" value="${e.sets}"><input class="exReps" type="number" min="1" value="${e.reps}">
+      <input class="exWeight" type="number" min="0" step=".5" value="${e.weight??""}" placeholder="Weight"><select class="exUnit">${["lb","kg","bodyweight","minutes"].map(u=>`<option ${u===e.unit?"selected":""}>${u}</option>`).join("")}</select>
+      <input class="exNotes wide" value="${escapeHtml(e.notes||"")}" placeholder="Notes"><button class="btn danger small deleteExercise wide">Delete</button>
+    </div></div></div>`).join(""):`<div class="card empty">No exercises planned.</div>`;
+    $$("[data-exercise]").forEach(r=>{const e=w.exercises.find(x=>x.id===r.dataset.exercise);r.querySelector(".exerciseDone").onchange=x=>{e.done=x.target.checked;save();renderAll();};r.querySelector(".exName").oninput=x=>{e.name=x.target.value;save();};r.querySelector(".exSets").oninput=x=>{e.sets=Math.max(1,Math.round(Number(x.target.value)||1));save();};r.querySelector(".exReps").oninput=x=>{e.reps=Math.max(1,Math.round(Number(x.target.value)||1));save();};r.querySelector(".exWeight").oninput=x=>{e.weight=x.target.value===""?"":Math.max(0,Number(x.target.value)||0);save();};r.querySelector(".exUnit").onchange=x=>{e.unit=x.target.value;save();};r.querySelector(".exNotes").oninput=x=>{e.notes=x.target.value;save();};r.querySelector(".deleteExercise").onclick=()=>{w.exercises=w.exercises.filter(x=>x.id!==e.id);save();renderAll();};});
+  }
+  function renderHabits(){
+    dayTabs("#habitTabs");const d=day(),active=state.habits.filter(h=>h.active&&habitApplies(h,state.selectedDay)),done=active.filter(h=>d.habitStatus[h.id]).length;
+    $("#habitDate").textContent=`Habits · ${formatDate(parseDate(state.selectedDay))}`;
+    $("#habitKpis").innerHTML=[["Due",active.length],["Complete",done],["Remaining",active.length-done],["Completion",`${active.length?(done/active.length*100).toFixed(0):0}%`]].map(([l,v])=>`<div class="kpi"><small>${l}</small><strong>${v}</strong></div>`).join("");
+    $("#habitList").innerHTML=state.ha
