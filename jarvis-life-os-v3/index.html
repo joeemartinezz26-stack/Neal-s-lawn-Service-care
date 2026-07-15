@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#102a43">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Jarvis Life OS">
+  <title>Jarvis Life OS</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<header>
+  <div class="topline">
+    <div><div class="brand">Jarvis Life OS</div><div class="sub">iPhone Edition · Local and private</div></div>
+    <div class="today-chip" id="headerDate"></div>
+  </div>
+  <nav>
+    <button data-view="today" class="on">Today</button>
+    <button data-view="time">Time</button>
+    <button data-view="tasks">Tasks</button>
+    <button data-view="calendar">Calendar</button>
+    <button data-view="workout">Workout</button>
+    <button data-view="habits">Habits</button>
+    <button data-view="coach">Coach</button>
+    <button data-view="review">Review</button>
+  </nav>
+</header>
+
+<main>
+  <div class="card weekbar">
+    <div><strong id="weekTitle"></strong><div class="tiny muted" id="weekRange"></div></div>
+    <div class="row">
+      <button class="btn small" id="prevWeek">←</button>
+      <button class="btn small" id="currentWeek">Current</button>
+      <input id="picker" type="date" style="width:auto">
+      <button class="btn small" id="nextWeek">→</button>
+    </div>
+  </div>
+
+  <section id="today" class="view on">
+    <div class="card hero">
+      <div class="eyebrow">Today command center</div>
+      <h1 id="todayHeading"></h1>
+      <p id="todayBrief" style="line-height:1.45;margin-bottom:0"></p>
+    </div>
+    <div class="kpis" id="todayKpis"></div>
+    <div class="quick-actions">
+      <button class="btn ghost" data-go="time">⏱ Log time</button>
+      <button class="btn ghost" data-go="tasks">✓ Add task</button>
+      <button class="btn ghost" data-go="calendar">📅 Add event</button>
+      <button class="btn ghost" data-go="coach">✦ Ask Jarvis</button>
+    </div>
+    <div class="today-grid" style="margin-top:11px">
+      <div>
+        <div class="card">
+          <div class="section-head"><div><h2>Today’s schedule</h2><p class="small muted">Local Jarvis calendar</p></div></div>
+          <div id="todayEvents"></div>
+        </div>
+        <div class="card">
+          <div class="section-head"><div><h2>Priority tasks</h2><p class="small muted">Highest priority first</p></div></div>
+          <div id="todayTasks"></div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="section-head"><div><h2>Workout</h2><p class="small muted">Routine and progress</p></div></div>
+          <div id="todayWorkout"></div>
+        </div>
+        <div class="card">
+          <div class="section-head"><div><h2>Habits</h2><p class="small muted">Daily consistency</p></div></div>
+          <div id="todayHabits"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="time" class="view">
+    <div class="date-title" id="timeDate"></div>
+    <div class="tabs" id="timeTabs"></div>
+    <div class="kpis" id="timeKpis"></div>
+    <div id="timeAlerts"></div>
+    <div id="timeEntries"></div>
+    <form class="card form-grid" id="addTime">
+      <label class="wide"><span class="label">Activity</span><input id="timeActivity" placeholder="Custom activity" required></label>
+      <label><span class="label">Category</span><select id="timeCategory"></select></label>
+      <label><span class="label">Actual minutes</span><input id="timeMinutes" type="number" min="0" max="1440" required></label>
+      <button class="btn primary wide">Add time entry</button>
+    </form>
+  </section>
+
+  <section id="tasks" class="view">
+    <div class="date-title" id="taskDate"></div>
+    <div class="tabs" id="taskTabs"></div>
+    <div class="kpis" id="taskKpis"></div>
+    <div id="taskList"></div>
+    <form class="card form-grid" id="addTask">
+      <label class="wide"><span class="label">Task</span><input id="taskName" placeholder="Task or to-do" required></label>
+      <label><span class="label">Priority</span><select id="taskPriority"><option>High</option><option selected>Medium</option><option>Low</option></select></label>
+      <label><span class="label">Estimated minutes</span><input id="taskEstimate" type="number" min="0" max="1440"></label>
+      <label><span class="label">Due time</span><input id="taskTime" type="time"></label>
+      <label><span class="label">Category</span><select id="taskCategory"><option>Career / Business</option><option>Family</option><option>Health</option><option>Faith</option><option>Personal</option><option>Admin</option></select></label>
+      <button class="btn primary wide">Add task</button>
+    </form>
+  </section>
+
+  <section id="calendar" class="view">
+    <div class="date-title" id="calendarDate"></div>
+    <div class="tabs" id="calendarTabs"></div>
+    <div class="kpis" id="calendarKpis"></div>
+    <div id="eventList"></div>
+    <form class="card form-grid" id="addEvent">
+      <label class="wide"><span class="label">Event title</span><input id="eventTitle" placeholder="Appointment, family dinner, focus block…" required></label>
+      <label><span class="label">Start</span><input id="eventStart" type="time" required></label>
+      <label><span class="label">End</span><input id="eventEnd" type="time" required></label>
+      <label><span class="label">Category</span><select id="eventCategory"><option>Calendar</option><option>Family</option><option>Fitness</option><option>Career / Business</option><option>Faith</option><option>Personal</option></select></label>
+      <label class="wide"><span class="label">Notes</span><input id="eventNotes" placeholder="Location or details"></label>
+      <button class="btn primary wide">Add calendar event</button>
+    </form>
+    <div class="alert purple small">“Add to iPhone Calendar” creates an .ics calendar file. Your data still remains stored locally inside Safari.</div>
+  </section>
+
+  <section id="workout" class="view">
+    <div class="date-title" id="workoutDate"></div>
+    <div class="tabs" id="workoutTabs"></div>
+    <div class="card form-grid">
+      <label class="wide"><span class="label">Routine name</span><input id="routineName" placeholder="Upper Body Strength"></label>
+      <label><span class="label">Workout type</span><select id="workoutType"><option>Strength</option><option>Cardio</option><option>Bodyweight</option><option>Hybrid</option><option>Recovery / Mobility</option></select></label>
+      <label><span class="label">Duration minutes</span><input id="workoutDuration" type="number" min="0" max="600"></label>
+      <label><span class="label">Effort (1–10)</span><input id="workoutEffort" type="number" min="1" max="10"></label>
+      <label class="wide"><span class="label">Routine notes</span><input id="routineNotes" placeholder="Warm-up, goal, soreness, or intensity"></label>
+    </div>
+    <div class="kpis" id="workoutKpis"></div>
+    <div class="row" style="margin-bottom:8px"><button class="btn" id="addCurls">Add 3 × 20 Curls</button><button class="btn" id="completeWorkout">Mark workout complete</button></div>
+    <div id="exerciseList"></div>
+    <form class="card form-grid" id="addExercise">
+      <label class="wide"><span class="label">Exercise</span><input id="exerciseName" placeholder="Dumbbell Curls" required></label>
+      <label><span class="label">Sets</span><input id="exerciseSets" type="number" min="1" max="99" required></label>
+      <label><span class="label">Reps</span><input id="exerciseReps" type="number" min="1" max="999" required></label>
+      <label><span class="label">Weight</span><input id="exerciseWeight" type="number" min="0" step=".5"></label>
+      <label><span class="label">Unit</span><select id="exerciseUnit"><option>lb</option><option>kg</option><option>bodyweight</option><option>minutes</option></select></label>
+      <label class="wide"><span class="label">Notes</span><input id="exerciseNotes" placeholder="Tempo, rest, form notes"></label>
+      <button class="btn primary wide">Add exercise</button>
+    </form>
+  </section>
+
+  <section id="habits" class="view">
+    <div class="date-title" id="habitDate"></div>
+    <div class="tabs" id="habitTabs"></div>
+    <div class="kpis" id="habitKpis"></div>
+    <div id="habitList"></div>
+    <form class="card form-grid" id="addHabit">
+      <label class="wide"><span class="label">Habit name</span><input id="habitName" placeholder="Read for 20 minutes" required></label>
+      <label><span class="label">Frequency</span><select id="habitFrequency"><option>Daily</option><option>Weekdays</option><option>Weekends</option></select></label>
+      <label><span class="label">Category</span><select id="habitCategory"><option>Health</option><option>Family</option><option>Faith</option><option>Career / Business</option><option>Personal</option></select></label>
+      <button class="btn primary wide">Add habit</button>
+    </form>
+  </section>
+
+  <section id="coach" class="view">
+    <div class="card hero">
+      <div class="eyebrow">Jarvis Coach v1</div>
+      <h1 id="coachHeading"></h1>
+      <p class="small muted">Private, on-device coaching based on your saved Life OS data.</p>
+    </div>
+    <div id="coachCards"></div>
+    <div class="card">
+      <h2>Ask Jarvis</h2>
+      <div class="coach-chat"><input id="coachQuestion" placeholder="What should I focus on today?"><button class="btn primary" id="askCoach">Ask</button></div>
+      <div id="coachAnswer" class="alert purple coach-answer" style="display:none"></div>
+      <div class="row" style="margin-top:9px">
+        <button class="btn small coachPrompt">What should I focus on?</button>
+        <button class="btn small coachPrompt">How did I do this week?</button>
+        <button class="btn small coachPrompt">What tasks are left?</button>
+      </div>
+    </div>
+    <div class="alert warn small"><strong>Coach v1 is not an online AI service.</strong> It uses rules and your local data. A conversational AI coach can be added later when you decide to use a secure backend.</div>
+  </section>
+
+  <section id="review" class="view">
+    <div class="card">
+      <div class="eyebrow">Weekly report</div>
+      <h2 id="reviewTitle"></h2>
+      <div class="kpis" id="reviewKpis"></div>
+      <div id="weeklyInsight"></div>
+    </div>
+    <div class="card">
+      <h2>Daily Wins</h2>
+      <div id="wins"></div>
+    </div>
+    <div class="card">
+      <h2>Reflection</h2>
+      <label><span class="label">What went well?</span><textarea data-reflection="well"></textarea></label>
+      <label><span class="label">Where did my time drift?</span><textarea data-reflection="drift"></textarea></label>
+      <label><span class="label">Most important adjustment next week?</span><textarea data-reflection="adjust"></textarea></label>
+      <label><span class="label">What am I grateful for?</span><textarea data-reflection="grateful"></textarea></label>
+      <button class="btn" id="exportCsv" style="margin-top:8px">Export weekly CSV backup</button>
+    </div>
+  </section>
+</main>
+
+<script src="./loader.js"></script>
+</body>
+</html>
