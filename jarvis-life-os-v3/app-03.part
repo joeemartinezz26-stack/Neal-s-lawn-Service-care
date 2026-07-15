@@ -1,0 +1,39 @@
+g class="${t.done?"strike muted":""}">${escapeHtml(t.title)}</strong><div class="tiny muted">${t.dueTime?timeLabel(t.dueTime)+" · ":""}${t.estimated||0} min</div></div><span class="pill ${t.priority.toLowerCase()}">${t.priority}</span></div>`).join(""):`<div class="empty">No tasks listed today.</div>`;
+    const w=d.workout;
+    $("#todayWorkout").innerHTML=w.exercises.length?`
+      <div class="statline"><span>Routine</span><strong>${escapeHtml(w.name||w.type)}</strong></div>
+      <div class="statline"><span>Exercises</span><strong>${w.exercises.filter(x=>x.done).length}/${w.exercises.length}</strong></div>
+      <div class="statline"><span>Status</span><strong>${w.completed?"Complete":"Planned"}</strong></div>
+      <button class="btn small" data-today-go="workout" style="margin-top:9px">Open workout</button>`:`<div class="empty">No workout planned.</div><button class="btn small" data-today-go="workout">Plan workout</button>`;
+    $("#todayHabits").innerHTML=activeHabits.length?activeHabits.map(h=>`<div class="habit-row"><input class="check todayHabit" data-habit="${h.id}" type="checkbox" ${d.habitStatus[h.id]?"checked":""}><div><strong>${escapeHtml(h.name)}</strong><div class="tiny muted">${escapeHtml(h.category)}</div></div><span class="habit-streak">${habitStreak(h.id,date)} day</span></div>`).join(""):`<div class="empty">No habits apply today.</div>`;
+    $$(".todayHabit").forEach(c=>c.onchange=()=>{d.habitStatus[c.dataset.habit]=c.checked;save();renderToday();renderHabits();});
+    $$("[data-today-go]").forEach(b=>b.onclick=()=>navigate(b.dataset.todayGo));
+  }
+  function renderTime(){
+    dayTabs("#timeTabs");const d=day(),s=dayStats(state.selectedDay);
+    $("#timeDate").textContent=`Time Log · ${formatDate(parseDate(state.selectedDay))}`;
+    $("#timeKpis").innerHTML=[["Planned",minutesText(s.planned)],["Actual",minutesText(s.logged)],["% of day",`${(s.logged/1440*100).toFixed(1)}%`],["Untracked",minutesText(Math.max(0,s.remaining))]].map(([l,v])=>`<div class="kpi"><small>${l}</small><strong>${v}</strong></div>`).join("");
+    $("#timeAlerts").innerHTML=(s.logged>1440?`<div class="alert bad">This day exceeds 1,440 minutes by ${s.logged-1440}.</div>`:"")+(s.family>=120?`<div class="alert good">Family minimum met: ${s.family} minutes.</div>`:`<div class="alert warn">Family time: ${s.family}/120 minutes.</div>`);
+    $("#timeEntries").innerHTML=d.entries.length?d.entries.map(e=>`<div class="item" data-entry="${e.id}">
+      <div class="item-head"><div><div class="item-title">${escapeHtml(e.activity)}</div><div class="meta">${escapeHtml(e.category)} · planned ${e.planned||0} min</div></div><input class="entryActual" style="width:88px;font-size:17px;font-weight:900;text-align:center" type="number" min="0" max="1440" value="${e.actual}" placeholder="Min"></div>
+      <input class="entryNote" value="${escapeHtml(e.note||"")}" placeholder="Notes" style="margin-top:7px"><button class="btn danger small deleteEntry" style="margin-top:7px">Delete</button>
+    </div>`).join(""):`<div class="card empty">No time entries for this day.</div>`;
+    $$("[data-entry]").forEach(r=>{const e=d.entries.find(x=>x.id===r.dataset.entry);r.querySelector(".entryActual").onchange=x=>{e.actual=x.target.value===""?"":clamp(x.target.value);save();renderAll();};r.querySelector(".entryNote").oninput=x=>{e.note=x.target.value;save();};r.querySelector(".deleteEntry").onclick=()=>{d.entries=d.entries.filter(x=>x.id!==e.id);save();renderAll();};});
+    $("#timeCategory").innerHTML=categoryNames().map(c=>`<option>${escapeHtml(c)}</option>`).join("");
+  }
+  function renderTasks(){
+    dayTabs("#taskTabs");const d=day(),done=d.tasks.filter(t=>t.done).length,estimated=sum(d.tasks,t=>Number(t.estimated)||0);
+    $("#taskDate").textContent=`Tasks · ${formatDate(parseDate(state.selectedDay))}`;
+    $("#taskKpis").innerHTML=[["Total",d.tasks.length],["Complete",done],["Remaining",d.tasks.length-done],["Estimated",minutesText(estimated)]].map(([l,v])=>`<div class="kpi"><small>${l}</small><strong>${v}</strong></div>`).join("");
+    const priorityRank={High:0,Medium:1,Low:2};
+    const sorted=[...d.tasks].sort((a,b)=>(Number(a.done)-Number(b.done))||(priorityRank[a.priority]-priorityRank[b.priority]));
+    $("#taskList").innerHTML=sorted.length?sorted.map(t=>`<div class="item ${t.done?"done":""}" data-task="${t.id}">
+      <div class="task-row"><input class="check taskDone" type="checkbox" ${t.done?"checked":""}><div>
+        <input class="taskTitle strike" value="${escapeHtml(t.title)}" style="font-weight:900">
+        <div class="task-controls"><select class="taskPriority">${["High","Medium","Low"].map(p=>`<option ${p===t.priority?"selected":""}>${p}</option>`).join("")}</select><input class="taskEstimate" type="number" min="0" value="${t.estimated||""}" placeholder="Est. min"><input class="taskDue" type="time" value="${t.dueTime||""}"><select class="taskCategory">${["Career / Business","Family","Health","Faith","Personal","Admin"].map(c=>`<option ${c===t.category?"selected":""}>${c}</option>`).join("")}</select></div>
+        <button class="btn danger small deleteTask" style="margin-top:7px">Delete</button>
+      </div></div></div>`).join(""):`<div class="card empty">No tasks for this day.</div>`;
+    $$("[data-task]").forEach(r=>{const t=d.tasks.find(x=>x.id===r.dataset.task);r.querySelector(".taskDone").onchange=x=>{t.done=x.target.checked;save();renderAll();};r.querySelector(".taskTitle").oninput=x=>{t.title=x.target.value;save();};r.querySelector(".taskPriority").onchange=x=>{t.priority=x.target.value;save();renderTasks();};r.querySelector(".taskEstimate").oninput=x=>{t.estimated=clamp(x.target.value);save();};r.querySelector(".taskDue").onchange=x=>{t.dueTime=x.target.value;save();};r.querySelector(".taskCategory").onchange=x=>{t.category=x.target.value;save();};r.querySelector(".deleteTask").onclick=()=>{d.tasks=d.tasks.filter(x=>x.id!==t.id);save();renderAll();};});
+  }
+  function downloadICS(event,date){
+    co
