@@ -1,1 +1,1 @@
-{"name":"JJ's SmokeHouse Bar & Grill","short_name":"JJ's SmokeHouse","start_url":"./index.html","scope":"./","display":"standalone","background_color":"#f6ecd8","theme_color":"#7b211d","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
+{"name":"JJ's SmokeHouse Bar & Grill","short_name":"JJ's SmokeHouse","start_url":"./index.html?v=10","scope":"./","display":"standalone","background_color":"#f6ecd8","theme_color":"#7b211d","icons":[{"src":"icon.svg?v=10","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
